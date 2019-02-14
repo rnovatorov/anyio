@@ -11,30 +11,51 @@ stages:
 jobs:
   include:
     - stage: static analysis
-      env: TOXENV=flake8
+      install: pip install flake8
+      script: flake8 anyio tests
 
     - stage: static analysis
-      env: TOXENV=mypy
+      install: pip install mypy
+      script: mypy anyio
 
     - &test
       stage: test
-      env: TOXENV=pypy3
-      python: pypy3.5-6.0
+      python: "3.5.3"
       after_success:
         - pip install coveralls
         - coveralls
 
     - <<: *test
-      env: TOXENV=py35
-      python: "3.5.3"
-
-    - <<: *test
-      env: TOXENV=py36
       python: "3.6"
 
     - <<: *test
-      env: TOXENV=py37
       python: "3.7"
+
+    - <<: *test
+      python: pypy3.5-6.0
+      env: PYTEST_ADDOPTS="--no-cov"
+      after_success: skip
+
+    - <<: *test
+      os: osx
+      language: sh
+      python: "3.7"
+      before_install:
+        - brew update
+        - brew upgrade python3
+        - python3 -m pip install virtualenv
+        - virtualenv venv -p python3
+        - source venv/bin/activate
+      env: HOMEBREW_NO_INSTALL_CLEANUP=1
+
+    - <<: *test
+      os: windows
+      language: sh
+      python: "3.7"
+      before_install:
+        - choco install python3
+        - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
+        - python -m pip install --upgrade pip
 
     - stage: deploy to pypi
       install: true
@@ -49,6 +70,6 @@ jobs:
           tags: true
           repo: agronholm/anyio
 
-install: pip install tox
+install: pip install -e .[test,curio,trio]
 
-script: tox
+script: pytest
